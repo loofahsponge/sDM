@@ -11,6 +11,7 @@
 */
 #ifndef _SDM_HH_
 #define _SDM_HH_
+
 #include <stdint.h>
 
 #include <cassert>
@@ -31,12 +32,12 @@
 #define SDM_HMAC_ZOOM 128      // 缩放系数与选择的输入长度和hash算法有关
 #define CL_SIZE 64            // 64B = 512 bit = CacheLine_Size
 #define PAGE_SIZE 4096
-#define CL_ALIGN_MASK   0xffffffffffffff40
-#define PAGE_ALIGN_MASK 0xfffffffffffff100
+#define CL_ALIGN_MASK   0xffffffffffffffC0// +by psj:CL mask错误
+#define PAGE_ALIGN_MASK 0xfffffffffffff000// +by psj:PAGE mask错误
 #define IIT_NODE_SIZE 64       // 64B = 512 bit = CacheLine_Size
 #define IIT_HASHTAG_SIZE 7     // 7B = 56 bit
 #define IIT_COUNTER_SIZE 7     // 7B = 56 bit
-#define IIT_COUNTER_NUMS 8//(CL_SIZE-IIT_HASHTAG_SIZE)/IIT_COUNTER_SIZE
+#define IIT_COUNTER_NUMS 8     //(CL_SIZE-IIT_HASHTAG_SIZE)/IIT_COUNTER_SIZE
 
 typedef uint64_t Addr;       // 64位地址类型
 typedef uint64_t iit_root;
@@ -89,7 +90,8 @@ typedef struct _sdm_space
         paddr &= CL_ALIGN_MASK;// 按缓存行对齐
         assert((Addr)dataPtr <= paddr && paddr <= (Addr)dataPtr + sDataSize - 1 && "invalid paddr in SDM");
         Addr base = (paddr-(Addr)dataPtr) / (CL_SIZE * IIT_COUNTER_NUMS);
-        uint32_t offset = (uint32_t)((paddr-(Addr)dataPtr)%(CL_SIZE * IIT_COUNTER_NUMS));// 这个转换是为了与iit_node中取counter[k]的操作保持一致
+        // 这个转换是为了与iit_node中取counter[k]的操作保持一致
+        uint32_t offset = (((uint32_t)(paddr-(Addr)dataPtr))/(CL_SIZE)) % IIT_COUNTER_NUMS;//+by psj:node内counter值计算错误
         iit_nodePtr nodePtr = iITPtr + base;
         return nodePtr->getCounter_k(offset);
     }
@@ -107,7 +109,7 @@ typedef struct _sdm_space
         Addr curLeveloff = (paddr-(Addr)dataPtr) / (CL_SIZE * IIT_COUNTER_NUMS);
 
         // 节点内偏移, 这个转换(u32)是为了与iit_node中取counter[k]的操作保持一致
-        uint32_t curCounteroff = (uint32_t)((paddr-(Addr)dataPtr)%(CL_SIZE * IIT_COUNTER_NUMS));
+        uint32_t curCounteroff = ((uint32_t)(paddr-(Addr)dataPtr) / (CL_SIZE)) % IIT_COUNTER_NUMS;
         // 当前层节点数量 = 叶节点数量
         uint32_t curLevelNodeNum = sDataSize / (CL_SIZE * IIT_COUNTER_NUMS);
         // 当前层的起始地址
@@ -119,7 +121,8 @@ typedef struct _sdm_space
         // 暂存当前节点的和
         iit_node_counter son;
         counter_init(son);  // 初始化, 置0
-        curNode->sum(son);  // 便于后续代码统一
+        // +by ys:初始化错误
+        counter_sum(son,*(curNode->getCounter_k(cur_k)));// 便于后续代码统一
 
         /**
          * 这里采用验证到根, 后续需要实现”缓存命中“优化
@@ -169,7 +172,7 @@ typedef struct _sdm_space
         // 取得counter指针
         uint8_t *ctr_ptr = (uint8_t *)getCounter(paddr);
         // 取得hmac
-        sdm_hmacPtr hmac_ptr =  HMACPtr + (paddr-(Addr)dataPtr)/PAGE_SIZE;
+        sdm_hmacPtr hmac_ptr =  HMACPtr + (paddr-(Addr)dataPtr) / PAGE_SIZE;
 
         /*
         * 这里应该进行相应的解密操作...
@@ -197,7 +200,7 @@ typedef struct _sdm_space
         Addr curLeveloff = (paddr-(Addr)dataPtr) / (CL_SIZE * IIT_COUNTER_NUMS);
 
         // 节点内偏移, 这个转换(u32)是为了与iit_node中取counter[k]的操作保持一致
-        uint32_t curCounteroff = (uint32_t)((paddr-(Addr)dataPtr)%(CL_SIZE * IIT_COUNTER_NUMS));
+        uint32_t curCounteroff = ((uint32_t)(paddr-(Addr)dataPtr) / (CL_SIZE)) % IIT_COUNTER_NUMS;
         // 当前层节点数量 = 叶节点数量
         uint32_t curLevelNodeNum = sDataSize / (CL_SIZE * IIT_COUNTER_NUMS);
         // 当前层的起始地址
@@ -307,9 +310,10 @@ void counter_sum(iit_node_counter a,iit_node_counter b)
         a[i]+=b[i];
         if (a[i] < o) o = 1;//下一位需要进位
         else o = 0;// 复用
-        if (a[i]=0xFF && c==0x1)
+        //+by ys:判断符号误写
+        if (a[i] == 0xFF && c == 0x1)
         {
-            assert(o==0x0 && "carrier error");// 进位出错
+            assert(o == 0x0 && "carrier error");// 进位出错
             a[i] = 0x0;
             c = 0x1;
         }
@@ -366,8 +370,8 @@ typedef struct _iit_node
             ctr_k[p]++;
             if (ctr_k[p]==0x0) p++;//cur byte overflow
             else break;
-        }while (p<8);
-        assert(p<8 && "56 bit counter has been exhausted");
+        }while (p<IIT_COUNTER_SIZE);//+by psj:counter的size数值错误
+        assert(p<IIT_COUNTER_SIZE && "56 bit counter has been exhausted");
     }
     /**
      * @author:yqy
@@ -384,8 +388,8 @@ typedef struct _iit_node
     */
     iit_node_counter *getCounter_k(uint32_t k)
     {
-        assert(k>=1 && k<=IIT_COUNTER_NUMS && "invalid counter index");
-        return (ctr+k-1);
+        assert(k>=0 && k<IIT_COUNTER_NUMS && "invalid counter index");
+        return (ctr+k);
     }
     /**
      * @author:yqy
