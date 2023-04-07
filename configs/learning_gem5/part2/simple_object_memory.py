@@ -24,15 +24,51 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Authors: Jason Lowe-Power
 
-from m5.params import *
-from m5.SimObject import SimObject
+""" Simple config/run script for the HelloObject
 
+This is probably the simplest gem5 config file you can possibly create.
+It creates a Root object and one *very* simple SimObject and simulates the
+system. Since there are no events, this "simulation" should finish immediately
 
-class SimpleObject(SimObject):
-    type = "SimpleObject"
-    cxx_header = "learning_gem5/part2/simple_object.hh"
-    cxx_class = "gem5::SimpleObject"
-    mem_side = RequestPort("memory side port, send requests")
-    isread = Param.Bool(True, "is it going to read memory")
-    system = Param.System(Parent.any, "system object")
+"""
+
+from __future__ import print_function
+from __future__ import absolute_import
+
+# import the m5 (gem5) library created when gem5 is built
+import m5
+# import all of the SimObjects
+from m5.objects import *
+
+system = System()
+system.clk_domain = SrcClockDomain()
+system.clk_domain.clock = '1GHz'
+system.clk_domain.voltage_domain = VoltageDomain()
+
+system.memory = SimpleMemory(range=AddrRange('512MB'))
+
+system.membus = SystemXBar()
+system.system_port = system.membus.cpu_side_ports
+
+system.memory.port = system.membus.mem_side_ports
+
+# Create an instantiation of the simobject you created
+system.hello = SimpleObject()
+system.goodbye = SimpleObject()
+
+system.hello.mem_side = system.membus.cpu_side_ports
+system.goodbye.mem_side = system.membus.cpu_side_ports
+system.goodbye.isread = False
+
+# set up the root SimObject and start the simulation
+root = Root(full_system = False, system = system)
+
+# instantiate all of the objects we've created above
+m5.instantiate()
+
+print("Beginning simulation!")
+exit_event = m5.simulate()
+print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))

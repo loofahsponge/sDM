@@ -24,11 +24,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Authors: Jason Lowe-Power
  */
 
 #ifndef __LEARNING_GEM5_SIMPLE_OBJECT_HH__
 #define __LEARNING_GEM5_SIMPLE_OBJECT_HH__
 
+#include "request.hh"
+#include "mem/port.hh"
 #include "params/SimpleObject.hh"
 #include "sim/sim_object.hh"
 
@@ -37,8 +41,43 @@ namespace gem5
 
 class SimpleObject : public SimObject
 {
+    class SimplePort: public RequestPort
+    {
+    public:
+        // these virtual functions must be implemented
+        bool recvTimingResp(PacketPtr pkt) override;
+
+        void recvReqRetry()
+        {
+            fatal("SimplePort::recvReqRetry not implemented!\n");
+        }
+        // SimplePort::SimplePort() is deleted
+        SimplePort(const std::string &name, SimpleObject *owner):
+            RequestPort(name, owner)
+        {
+        }
+
+    };
+
+    RequestorID requestorId;
+    SimplePort memPort;
+    bool isread;
+    EventFunctionWrapper event;
+
   public:
     SimpleObject(const SimpleObjectParams &p);
+    Port &getPort(const std::string &if_name,
+                          PortID idx=InvalidPortID) override
+    {
+        if (if_name == "mem_side")
+            return memPort;
+        return SimpleObject::getPort(if_name, idx);
+    }
+    void startup() override;
+    void processEvent();
+    void readAtomic();
+    void readTiming();
+    void writeAtomic();
 };
 
 } // namespace gem5

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Jason Lowe-Power
+ * Copyright (c) 2017 Jason Lowe-Power
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,19 +24,54 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Authors: Jason Lowe-Power
  */
 
-#include "learning_gem5/part2/simple_object.hh"
+#include "learning_gem5/part2/hello_object.hh"
 
-#include <iostream>
+#include "base/logging.hh"
+#include "debug/HelloExample.hh"
 
-namespace gem5
+HelloObject::HelloObject(HelloObjectParams *params) :
+    SimObject(params),
+    // This is a C++ lambda. When the event is triggered, it will call the
+    // processEvent() function. (this must be captured)
+    event([this]{ processEvent(); }, name() + ".event"),
+    goodbye(params->goodbye_object),
+    // Note: This is not needed as you can *always* reference this->name()
+    myName(params->name),
+    latency(params->time_to_wait),
+    timesLeft(params->number_of_fires)
 {
-
-SimpleObject::SimpleObject(const SimpleObjectParams &params) :
-    SimObject(params)
-{
-    std::cout << "Hello World! From a SimObject!" << std::endl;
+    DPRINTF(HelloExample, "Created the hello object\n");
+    panic_if(!goodbye, "HelloObject must have a non-null GoodbyeObject");
 }
 
-} // namespace gem5
+void
+HelloObject::startup()
+{
+    // Before simulation starts, we need to schedule the event
+    schedule(event, latency);
+}
+
+void
+HelloObject::processEvent()
+{
+    timesLeft--;
+    DPRINTF(HelloExample, "Hello world! Processing the event! %d left\n",
+                          timesLeft);
+
+    if (timesLeft <= 0) {
+        DPRINTF(HelloExample, "Done firing!\n");
+        goodbye->sayGoodbye(myName);
+    } else {
+        schedule(event, curTick() + latency);
+    }
+}
+
+HelloObject*
+HelloObjectParams::create()
+{
+    return new HelloObject(this);
+}
