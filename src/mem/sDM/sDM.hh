@@ -17,7 +17,7 @@
 
 #include "sDM_def.hh"
 #include "./IIT/IIT.hh"
-#include "CME/cme.hh"
+#include "CME/CME.hh"
 
 #include <unordered_map>
 #include <cassert>

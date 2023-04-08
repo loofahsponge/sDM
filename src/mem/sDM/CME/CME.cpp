@@ -1,4 +1,4 @@
-#include "cme.hh"
+#include "CME.hh"
 #include "cassert"
 
 #include <string.h>
@@ -40,7 +40,7 @@ namespace gem5
          * @param counterLen 字节长度:CL_Counter 10B
          * @param OTP 存放OTP的指针
          */
-        void ConstructOTP(sDM::Addr paddr2CL, uint8_t *counter, uint8_t *OTP)
+        void ConstructOTP(sDM::Addr paddr2CL, uint8_t *counter, int counterLen, uint8_t *OTP)
         {
             memset(OTP, 0, CL_SIZE);
             for (int i = 0; i < counterLen; i++)
@@ -56,10 +56,10 @@ namespace gem5
             *((sDM::Addr *)(OTP + 50)) = paddr2CL; // 50-47B:addr
                                                    // 58~59B:0x0
 
-            *((sDM::Addr *)(OTP + 60)) = paddr2CL; // 60B:MAGIC1
-            *((sDM::Addr *)(OTP + 61)) = paddr2CL; // 61B:MAGIC2
-            *((sDM::Addr *)(OTP + 62)) = paddr2CL; // 62B:MAGIC3
-            *((sDM::Addr *)(OTP + 63)) = paddr2CL; // 63B:MAGIC4
+            *((uint8_t *)(OTP + 60)) = MAGIC1; // 60B:MAGIC1
+            *((uint8_t *)(OTP + 61)) = MAGIC2; // 61B:MAGIC2
+            *((uint8_t *)(OTP + 62)) = MAGIC3; // 62B:MAGIC3
+            *((uint8_t *)(OTP + 63)) = MAGIC4; // 63B:MAGIC4
         }
         /**
          * @brief :
@@ -67,14 +67,15 @@ namespace gem5
          * @author yqy
          * @param plaint CL数据指针
          * @param counter CL counter指针
+         * @param counterLen 计数器字节长度10B(sizeof(CL_Counter))
          * @param paddr2CL CL的物理地址
          * @param key2EncryptionCL 加密密钥指针
          */
-        void sDM_Encrypt(uint8_t *plaint, uint8_t *counter, sDM::Addr paddr2CL, uint8_t *key2EncryptionCL)
+        void sDM_Encrypt(uint8_t *plaint, uint8_t *counter, int counterLen, sDM::Addr paddr2CL, uint8_t *key2EncryptionCL)
         {
             // 加密分块数
             uint8_t OTP[CL_SIZE], otp_cipher[SM4_INPUT_SIZE];
-            ConstructOTP(&paddr2CL, counter, OTP);
+            ConstructOTP(paddr2CL, counter, counterLen, OTP);
             memset(otp_cipher, 0, SM4_INPUT_SIZE);
             int rdcnt = CL_SIZE / SM4_INPUT_SIZE;
             for (int i = 0; i < rdcnt; i++)
@@ -89,14 +90,15 @@ namespace gem5
          * @author yqy
          * @param cipher 数据指针
          * @param counter CL_Counter指针
+         * @param counterLen 计数器字节长度10B(sizeof(CL_Counter))
          * @param paddr2CL CL物理地址
          * @param key2EncryptionCL 密钥指针
          */
-        void sDM_Decrypt(uint8_t *cipher, uint8_t *counter, sDM::Addr paddr2CL, uint8_t *key2EncryptionCL)
+        void sDM_Decrypt(uint8_t *cipher, uint8_t *counter, int counterLen, sDM::Addr paddr2CL, uint8_t *key2EncryptionCL)
         {
             // 加密分块数
             uint8_t OTP[CL_SIZE], otp_plaint[SM4_INPUT_SIZE];
-            ConstructOTP(&paddr2CL, counter, OTP);
+            ConstructOTP(paddr2CL, counter, counterLen, OTP);
 
             memset(otp_plaint, 0, SM4_INPUT_SIZE);
             int rdcnt = CL_SIZE / SM4_INPUT_SIZE;

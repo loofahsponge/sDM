@@ -230,8 +230,8 @@ namespace gem5
             // 该地址在所属空间中的相对偏移
             Addr rva;
             int h;
-            Addr keyPathAddr[MAX_HEIGHT];
-            iit_Node keyPathNode[MAX_HEIGHT];
+            Addr keyPathAddr[MAX_HEIGHT] = {0};
+            iit_Node keyPathNode[MAX_HEIGHT] = {0};
             sdm_hashKey hash_key;
             sdm_table[id].key_get(HASH_KEY_TYPE, hash_key);
             bool verified = verify(paddr, id, &rva, h, keyPathAddr, keyPathNode, hash_key);

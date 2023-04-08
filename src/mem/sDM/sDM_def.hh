@@ -32,7 +32,7 @@
 #define IIT_MID_COUNTER_RESERVED_MASK 0x7F
 #define IIT_LEAF_MINOR_RESERVED_MASK 0x0FFF
 #define IIT_MID_MINOR_RESERVED_MASK 0x3F // 保留节点中的所有计数器相关位
-#define IIT_LEAF_MINOR_MAXM 0xFFFF       // 叶节点的major counter最大值
+#define IIT_LEAF_MINOR_MAXM 0x0FFF       // 叶节点的major counter最大值
 #define IIT_MID_MINOR_MAXM 0x3F          // 中间节点点的minor counter最大值
 #define LITTLE_ENDIAN 1                  // 使用小端模式嵌入
 #define SM3_KEY_SIZE SM3_len / 8         // 基于sm3的hmac密钥

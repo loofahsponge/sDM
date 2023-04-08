@@ -1,7 +1,7 @@
 #ifndef _IIT_HH_
 #define _IIT_HH_
 #include "../sDM_def.hh"
-#include "../CME/cme.hh"
+#include "../CME/CME.hh"
 
 #include <cassert>
 #include <string.h>
@@ -71,7 +71,7 @@ namespace gem5
              */
             void node_type_sanity(int iit_node_type)
             {
-                assert(iit_node_type == IIT_LEAF_TYPE || iit_node_type == IIT_MID_TYPE && "undefined type of node");
+                assert((iit_node_type == IIT_LEAF_TYPE || iit_node_type == IIT_MID_TYPE) && "undefined type of node");
             }
             /**
              * @author yqy
@@ -253,6 +253,7 @@ namespace gem5
                 erase_hash_tag(iit_node_type, &node);
                 CME::sDM_HMAC((uint8_t *)(&node.leafNode), sizeof(_iit_Node), hash_tag_key,
                               paddr, counter, sizeof(iit_hash_tag), (uint8_t *)(&hash_tag), sizeof(iit_hash_tag));
+                return hash_tag;
             }
             /**
              * @brief 将当节点置为0,并给出正确的hash_tag
@@ -408,7 +409,7 @@ namespace gem5
                 getCounter_k(iit_node_type, k, counter_k);
                 uint64_t *major = (uint64_t *)(&counter_k[sizeof(iit_minor_counter)]); // 2~10B
                 uint16_t *minor = (uint16_t *)(counter_k);                             // 0~1B
-                printf("Major: %lld  |  minor: %d\n", *major, *minor);
+                printf("Major: %ld  |  minor: %d\n", *major, *minor);
             }
         } iit_Node;
         typedef iit_Node *iit_NodePtr;

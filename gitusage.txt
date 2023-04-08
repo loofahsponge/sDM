@@ -6,4 +6,4 @@ git push orgin xxx-your-branch
 git remote set-url origin xxxURL
 git reset --soft HEAD^
 
-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
+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
