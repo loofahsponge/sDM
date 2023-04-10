@@ -31,7 +31,7 @@
 #ifndef __LEARNING_GEM5_SIMPLE_OBJECT_HH__
 #define __LEARNING_GEM5_SIMPLE_OBJECT_HH__
 
-#include "request.hh"
+#include "mem/request.hh"
 #include "mem/port.hh"
 #include "params/SimpleObject.hh"
 #include "sim/sim_object.hh"
